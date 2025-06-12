@@ -1,1 +1,132 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ffffff">
+  <title>TrainTimer</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; text-align: center; }
+    .config, .status { margin: 1rem auto; max-width: 400px; }
+    .btn { padding: 1rem; font-size: 1.2rem; margin: 0.5rem; }
+    #timer { font-size: 3rem; margin-top: 2rem; }
+  </style>
+</head>
+<body>
+  <div class="config">
+    <h1>TrainTimer Setup</h1>
+    <label>Übungen: <input type="number" id="exercises" value="3" min="1"></label><br>
+    <label>Sätze: <input type="number" id="sets" value="2" min="1"></label><br>
+    <label>Belastung (Sek): <input type="number" id="work" value="30" min="5"></label><br>
+    <label>Pause zw. Sätzen (Sek): <input type="number" id="rest" value="15" min="5"></label><br>
+    <label>Pause zw. Übungen (Sek): <input type="number" id="longrest" value="30" min="5"></label><br>
+    <label><input type="checkbox" id="manual"> Manuelles Weiterschalten</label><br>
+    <button onclick="startTimer()" class="btn">Start</button>
+  </div>
+
+  <div class="status" style="display:none">
+    <div id="phase" style="font-size: 2rem;"></div>
+    <div id="timer"></div>
+    <div id="counter"></div>
+    <button onclick="nextPhase()" class="btn" id="nextBtn" style="display:none">Weiter</button>
+  </div>
+
+  <script>
+    let exercises, sets, work, rest, longrest, manual;
+    let exCount = 0, setCount = 0;
+    let phase = 'ready';
+    let timerId, seconds;
+
+    function beep() {
+      const a = new AudioContext();
+      const o = a.createOscillator();
+      const g = a.createGain();
+      o.connect(g);
+      g.connect(a.destination);
+      o.frequency.value = 800;
+      o.start(0);
+      g.gain.exponentialRampToValueAtTime(0.00001, a.currentTime + 0.2);
+    }
+
+    function vibrate(ms) {
+      if (navigator.vibrate) navigator.vibrate(ms);
+    }
+
+    function startTimer() {
+      exercises = +document.getElementById('exercises').value;
+      sets = +document.getElementById('sets').value;
+      work = +document.getElementById('work').value;
+      rest = +document.getElementById('rest').value;
+      longrest = +document.getElementById('longrest').value;
+      manual = document.getElementById('manual').checked;
+
+      document.querySelector('.config').style.display = 'none';
+      document.querySelector('.status').style.display = 'block';
+      exCount = 1;
+      setCount = 1;
+      startPhase('work');
+    }
+
+    function startPhase(p) {
+      clearInterval(timerId);
+      phase = p;
+      if (p === 'work') {
+        seconds = work;
+        document.body.style.background = 'red';
+        document.getElementById('phase').innerText = `Übung ${exCount}, Satz ${setCount}`;
+      } else if (p === 'rest') {
+        seconds = rest;
+        document.body.style.background = 'yellow';
+        document.getElementById('phase').innerText = 'Pause';
+      } else if (p === 'longrest') {
+        seconds = longrest;
+        document.body.style.background = 'green';
+        document.getElementById('phase').innerText = 'Übungspause';
+      }
+
+      document.getElementById('counter').innerText = '';
+
+      if (manual) {
+        document.getElementById('timer').innerText = seconds + ' s';
+        document.getElementById('nextBtn').style.display = 'inline-block';
+      } else {
+        document.getElementById('nextBtn').style.display = 'none';
+        timerId = setInterval(() => {
+          document.getElementById('timer').innerText = seconds + ' s';
+          if (seconds <= 5 && seconds > 0) beep();
+          if (seconds === 0) {
+            vibrate(300);
+            nextPhase();
+          }
+          seconds--;
+        }, 1000);
+      }
+    }
+
+    function nextPhase() {
+      if (phase === 'work') {
+        if (setCount < sets) {
+          setCount++;
+          startPhase('rest');
+        } else {
+          if (exCount < exercises) {
+            exCount++;
+            setCount = 1;
+            startPhase('longrest');
+          } else {
+            document.getElementById('phase').innerText = 'Fertig!';
+            document.body.style.background = 'white';
+            document.getElementById('timer').innerText = '';
+            document.getElementById('nextBtn').style.display = 'none';
+            clearInterval(timerId);
+          }
+        }
+      } else {
+        startPhase('work');
+      }
+    }
+  </script>
+</body>
+</html>
 
